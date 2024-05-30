@@ -1,5 +1,4 @@
 const User = require('../models/userModel');
-const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
 
 const crypto = require("crypto")
@@ -35,7 +34,7 @@ const register = async (req, res, next) => {
 
     const {username, password} = req.body;
 
-    const passwordHash = bcrypt.hashSync(password, 11);
+    const passwordHash = await hash(password);
 
     try{
         let userNew;
@@ -75,7 +74,7 @@ const login = async (req, res, next) => {
         })
 
         if(!user) return res.status(400).json("Tên Tài Khoản Không Tồn Tại!")
-        const match = await bcrypt.compare(password, user.password);
+        const match = await verify(password, user.password);
         if(!match) return res.status(400).json("Sai Mật Khẩu!");
         
         const access_token = createAccessToken({ id: user._id });
