@@ -2,6 +2,29 @@ const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
 
+const crypto = require("crypto")
+
+async function hash(password) {
+    return new Promise((resolve, reject) => {
+        const salt = crypto.randomBytes(8).toString("hex")
+
+        crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+            if (err) reject(err);
+            resolve(salt + ":" + derivedKey.toString('hex'))
+        });
+    })
+}
+
+async function verify(password, hash) {
+    return new Promise((resolve, reject) => {
+        const [salt, key] = hash.split(":")
+        crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+            if (err) reject(err);
+            resolve(key == derivedKey.toString('hex'))
+        });
+    })
+}
+
 const createAccessToken = (payload) => {
     return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "1d",
