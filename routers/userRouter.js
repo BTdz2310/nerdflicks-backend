@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const {register, login, getAccessTokenGithub, getUserDataGithub, getUserDataGoogle, checkAuth, test, setFavorite, setList} = require("../controllers/userController");
+const {register, login, getAccessTokenGithub, getUserDataGithub, getUserDataGoogle, checkAuth, test, setFavorite, setList, getUser, checkUsername, checkEmail, updateUser, allUser} = require("../controllers/userController");
 const auth = require("../middlewares/auth");
 
 router.post("/register", register);
@@ -7,6 +7,11 @@ router.post("/login", login);
 router.get('/credential', auth, checkAuth);
 router.post('/favorite', auth, setFavorite);
 router.post('/list', auth, setList);
+router.get('/user/:id', getUser);
+router.post('/user/:id', auth, updateUser);
+router.get('/checkUsername/:username', checkUsername);
+router.get('/checkEmail/:email', checkEmail);
+router.get('/allUser', allUser);
 router.get('/test', test)
 
 router.get('/google/login', (req, res) => {
@@ -15,8 +20,15 @@ router.get('/google/login', (req, res) => {
         {
             msg: resp.msg,
             access_token: resp.access_token,
-            user: resp.user,
-            isAdmin: resp.user.role==='admin'
+            user: {
+                favorite: resp.user.favorite,
+                list: resp.user.list,
+                _id: resp.user._id,
+                username: resp.user.username,
+                avatar: resp.user.avatar
+            },
+            isAdmin: resp.user.role==='admin',
+            id: resp.user._id
         }
     ));
 });
@@ -32,8 +44,15 @@ router.get('/github/login', (req, res) => {
         {
             msg: resp.msg,
             access_token: resp.access_token,
-            user: resp.user,
-            isAdmin: resp.user.role==='admin'
+            user: {
+                favorite: resp.user.favorite,
+                list: resp.user.list,
+                _id: resp.user._id,
+                username: resp.user.username,
+                avatar: resp.user.avatar
+            },
+            isAdmin: resp.user.role==='admin',
+            id: resp.user._id
         }));
 });
 

@@ -4,7 +4,7 @@ const postSchema = new mongoose.Schema({
     author: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'Users'
+        ref: 'users'
     },
     created_at: {
         type: Number,
@@ -27,10 +27,20 @@ const postSchema = new mongoose.Schema({
         default: ''
     },
     list_review: {
-        type: [{
-            media_type: Strin,
-            
-        }]
+        type: [Object]
+    },
+    isPublic: {
+        type: Boolean
+    },
+    like: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'users',
+        default: []
+    },
+    unlike: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'users',
+        default: []
     }
 },
     {

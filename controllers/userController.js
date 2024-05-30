@@ -59,11 +59,19 @@ const login = async (req, res, next) => {
 
         return res.status(200).json({
             access_token,
-            user,
-            isAdmin: user.role==='admin'
+            user:{
+                favorite: user.favorite,
+                list: user.list,
+                _id: user._id,
+                username: user.username,
+                avatar: user.avatar
+            },
+            isAdmin: user.role==='admin',
+            id: user._id
         });
 
     }catch(err){
+        console.log(err)
         return res.status(500).json(err)
     }
 }
@@ -194,11 +202,7 @@ const getAccessTokenGithub = async (code) => {
   const checkAuth = async (req, res, next) => {
     const user = await User.findOne({
         _id: res.locals.idUser.id
-    })
-    const userRtn = {
-        ...user,
-        isAdmin: user.role==='admin'
-    }
+    }, '_id list favorite username avatar')
     return res.status(200).json({
         user,
         isAdmin: user.role==='admin'
@@ -239,11 +243,105 @@ const setList = async (req, res, next) => {
     }
 }
 
+const getUser = async (req, res, next) => {
+    try{
+        const user = await User.findOne({
+            _id: req.params.id
+        }, 'username email avatar background followers followings')
+
+        return res.status(200).json({
+            user
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const checkUsername = async (req, res, next) => {
+    try{
+        const user = await User.findOne({
+            username: req.params.username
+        })
+        console.log(user)
+        if(!user){
+            return res.status(200).json({
+                msg: 'Tên username đủ điều kiện để đặt'
+            })
+        }
+        return res.status(400).json({
+            msg: 'Tên username đã tồn tại. Vui lòng tìm tên khác'
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const checkEmail = async (req, res, next) => {
+    try{
+        const user = await User.findOne({
+            email: req.params.email
+        })
+        if(!user){
+            return res.status(200).json({
+                msg: 'Email đủ điều kiện'
+            })
+        }
+        return res.status(400).json({
+            msg: 'Email đã được sử dụng'
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
 const test = async (req, res) => {
     const users = await User.find({});
     return res.json({
         data: users.map(user=>user.username)
     })
+}
+
+const updateUser = async (req, res, next) => {
+    try{
+        const {avatar, background, username, email} = req.body;
+        if(req.params.id!==res.locals.idUser.id) return res.status(400).json({
+            msg: 'Không Thể Cập Nhật Tài Khoản Này'
+        })
+        const user = await User.findByIdAndUpdate(res.locals.idUser.id,{
+            avatar: avatar,
+            background: background,
+            username: username,
+            email: email
+        })
+        return res.status(200).json({
+            msg: 'Cập Nhật Thành Công'
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const allUser = async (req, res, next) => {
+    try{
+        const users = await User.find({
+
+        }, '_id username');
+        return res.status(200).json({
+            data: users
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
 }
 
 module.exports = {
@@ -255,5 +353,10 @@ module.exports = {
     checkAuth,
     setFavorite,
     setList,
-    test
+    getUser,
+    test,
+    checkUsername,
+    checkEmail,
+    updateUser,
+    allUser
 }
