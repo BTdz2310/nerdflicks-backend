@@ -11,7 +11,7 @@ const postSchema = new mongoose.Schema({
         required: true
     },
     updated_at: {
-        type: [Number],
+        type: [Object],
         default: []
     },
     tags: {

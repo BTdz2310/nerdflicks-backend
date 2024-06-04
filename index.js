@@ -32,6 +32,7 @@ connectDB();
 app.use('/api', require('./routers/userRouter'))
 app.use('/api', require('./routers/postRouter'))
 app.use('/api', require('./routers/commentRouter'))
+app.use('/api', require('./routers/notificationRouter'))
 
 index.listen(port, ()=>{
     console.log(`Listening on ${port}`)

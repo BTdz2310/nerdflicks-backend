@@ -33,7 +33,11 @@ const commentSchema = new mongoose.Schema({
     like: {
         type: [String],
         default: []
-    }
+    },
+    tags: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users'
+    }]
 },
     {
         collection: 'Comments'

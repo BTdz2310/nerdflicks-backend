@@ -39,12 +39,18 @@ const userSchema = new mongoose.Schema({
         type: String
     },
     followings: {
-        type: [String],
-        default: []
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'users'
+        }],
+        default: ['665af25313e85e8a47ea8b7f']
     },
     followers: {
-        type: [String],
-        default: []
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'users'
+        }],
+        default: ['665af25313e85e8a47ea8b7f']
     },
     favorite: {
         type: Array,
@@ -52,7 +58,9 @@ const userSchema = new mongoose.Schema({
     },
     list: {
         type: Map,
-        default: new Map()
+        default: {
+            'Xem Sau': []
+        }
     }
 },
     {

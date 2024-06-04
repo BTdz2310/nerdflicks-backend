@@ -1,7 +1,8 @@
 const User = require('../models/userModel');
 const jwt = require("jsonwebtoken");
 
-const crypto = require("crypto")
+const crypto = require("crypto");
+const { notifyUser } = require('./notificationController');
 
 async function hash(password) {
     return new Promise((resolve, reject) => {
@@ -52,6 +53,9 @@ const register = async (req, res, next) => {
                     password: passwordHash,
                 }
             );
+
+            await adminAdd(userNew._id)
+
         }
 
         return res.status(200).json('Tạo Mới Tài Khoản Thành Công')
@@ -86,14 +90,16 @@ const login = async (req, res, next) => {
                 list: user.list,
                 _id: user._id,
                 username: user.username,
-                avatar: user.avatar
+                avatar: user.avatar,
+                followers: user.followers,
+                followings: user.followings
             },
             isAdmin: user.role==='admin',
             id: user._id
         });
 
     }catch(err){
-        console.log(err)
+        // console.log(err)
         return res.status(500).json(err)
     }
 }
@@ -151,7 +157,7 @@ const getAccessTokenGithub = async (code) => {
         `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`,
       );
     const data = await response.json();
-    console.log(data);
+    // console.log(data);
     const user = await loginUserGoogle(data);
     const access_token = createAccessToken({ id: user._id });
     return{
@@ -188,6 +194,9 @@ const getAccessTokenGithub = async (code) => {
                 social: 'google',
                 socialId: data.sub
             })
+
+            await adminAdd(user._id)
+
         }
         return user;
     }catch(e){
@@ -214,6 +223,9 @@ const getAccessTokenGithub = async (code) => {
                 social: 'github',
                 socialId: data.id
             })
+
+            await adminAdd(user._id)
+
         }
         return user;
     }catch(e){
@@ -224,7 +236,7 @@ const getAccessTokenGithub = async (code) => {
   const checkAuth = async (req, res, next) => {
     const user = await User.findOne({
         _id: res.locals.idUser.id
-    }, '_id list favorite username avatar')
+    }, '_id list favorite username avatar followers followings')
     return res.status(200).json({
         user,
         isAdmin: user.role==='admin'
@@ -237,6 +249,14 @@ const setFavorite = async (req, res, next) => {
         user.favorite = req.body;
         await user.save();
 
+        await notifyUser({
+            idUser: res.locals.idUser.id,
+            content: `Bạn Đã Cập Nhật Danh Sách Yêu Thích Thành Công`,
+            created_at: Date.now(),
+            link: `/user/favorite/${res.locals.idUser.id}`,
+            img: 'https://static.vecteezy.com/system/resources/thumbnails/028/146/432/small/favorite-line-icon-vector.jpg'
+        })
+
         return res.status(200).json({
             data: user.favorite,
             msg: 'Cập Nhật Thành Công'
@@ -248,11 +268,36 @@ const setFavorite = async (req, res, next) => {
     }
 }
 
+// const setFavorite2 = async (req, res, next) => {
+//     try{
+//         const user = await User.findById(res.locals.idUser.id);
+//         user.favorite = req.body;
+//         await user.save();
+
+//         return res.status(200).json({
+//             data: user.favorite,
+//             msg: 'Cập Nhật Thành Công'
+//         })
+//     }catch(e){
+//         return res.status(500).json({
+//             msg: `Lỗi: ${e}`
+//         })
+//     }
+// }
+
 const setList = async (req, res, next) => {
     try{
         const user = await User.findById(res.locals.idUser.id);
         user.list = req.body;
         await user.save();
+
+        await notifyUser({
+            idUser: res.locals.idUser.id,
+            content: `Bạn Đã Cập Nhật Danh Sách Lưu Thành Công`,
+            created_at: Date.now(),
+            link: `/user/list/${res.locals.idUser.id}`,
+            img: 'https://static.thenounproject.com/png/3884719-200.png'
+        })
 
         return res.status(200).json({
             data: user.list,
@@ -269,7 +314,10 @@ const getUser = async (req, res, next) => {
     try{
         const user = await User.findOne({
             _id: req.params.id
-        }, 'username email avatar background followers followings')
+        }, 'username email avatar background followers followings').populate({
+            path: 'followers followings',
+            select: 'username avatar _id'
+          })
 
         return res.status(200).json({
             user
@@ -286,7 +334,7 @@ const checkUsername = async (req, res, next) => {
         const user = await User.findOne({
             username: req.params.username
         })
-        console.log(user)
+        // console.log(user)
         if(!user){
             return res.status(200).json({
                 msg: 'Tên username đủ điều kiện để đặt'
@@ -366,6 +414,147 @@ const allUser = async (req, res, next) => {
     }
 }
 
+const setFollow = async (req, res, next) => {
+    try{
+
+        const {idUser} = req.body;
+
+        const me1 = await User.findById(res.locals.idUser.id);
+
+        const you1 = await User.findById(idUser);
+
+        me1.followings.push(idUser);
+        you1.followers.push(res.locals.idUser.id);
+
+        const me = await User.validate(me1);
+        const you = await User.validate(you1);
+
+        await User.findByIdAndUpdate(res.locals.idUser.id, me);
+        await User.findByIdAndUpdate(idUser, you);
+
+        await notifyUser({
+            idUser: me1._id,
+            content: `Bạn Đã Theo Dõi ${you1.username} Thành Công`,
+            created_at: Date.now(),
+            link: `/user/profile/${you1._id}`,
+            img: you1.avatar
+        })
+
+        await notifyUser({
+            idUser: you1._id,
+            content: `${me1.username} Đã Theo Dõi Bạn`,
+            created_at: Date.now(),
+            link: `/user/profile/${me1._id}`,
+            img: me1.avatar
+        })
+
+        return res.status(200).json({
+            msg: 'Thành Công',
+            user: await User.findById(res.locals.idUser.id, 'username email avatar background followers followings'),
+            isAdmin: me.role==='admin',
+            id: me._id
+        })
+
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const setUnFollow = async (req, res, next) => {
+    try{
+
+        const {idUser} = req.body;
+
+        const me1 = await User.findById(res.locals.idUser.id);
+        // console.log(idUser)
+
+        const you1 = await User.findById(idUser);
+        // console.log('trc',me)
+        me1.followings.pull(idUser);
+        you1.followers.pull(res.locals.idUser.id);
+        // console.log('sau',me)
+        // await you.save();
+
+        const me = await User.validate(me1);
+        const you = await User.validate(you1);
+
+        await User.findByIdAndUpdate(res.locals.idUser.id, me);
+        await User.findByIdAndUpdate(idUser, you);
+
+        await notifyUser({
+            idUser: me1._id,
+            content: `Bạn Đã Huỷ Theo Dõi ${you1.username} Thành Công`,
+            created_at: Date.now(),
+            link: `/user/profile/${you1._id}`,
+            img: you1.avatar
+        })
+
+        // console.log(await User.validate(me1))
+
+        // console.log('end', me)
+
+        return res.status(200).json({
+            msg: 'Thành Công',
+            // user: await User.findById(res.locals.idUser.id, 'username email avatar background followers followings'),
+            user: me1,
+            isAdmin: me1.role==='admin',
+            id: me1._id
+        })
+
+    }catch(e){
+        console.log(e)
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const getFavorite = async (req, res, next) => {
+    try{
+        const favorite = await User.findById(res.locals.idUser.id, 'favorite');
+
+        return res.status(200).json({
+            data: favorite
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const getList = async (req, res, next) => {
+    try{
+        const list = await User.findById(res.locals.idUser.id, 'list');
+
+        return res.status(200).json({
+            data: list
+        })
+    }catch(e){
+        return res.status(500).json({
+            msg: e
+        })
+    }
+}
+
+const adminAdd = async (id) => {
+    try{
+        const admin = await User.findOne({
+            role: 'admin'
+        })
+
+        admin.followers.push(id);
+        admin.followings.push(id);
+
+        await admin.save();
+
+    }catch(e){
+        throw e;
+    }
+}
+
 module.exports = {
     register,
     login,
@@ -380,5 +569,9 @@ module.exports = {
     checkUsername,
     checkEmail,
     updateUser,
-    allUser
+    allUser,
+    setFollow,
+    setUnFollow,
+    getFavorite,
+    getList
 }
